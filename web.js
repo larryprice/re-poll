@@ -271,6 +271,7 @@ app.get('/polls', function(request, result) {
 	withSessionAuth(request, result, function(req, res, session) {
 		Poll.find({}, {
 			passcode: 0,
+      candidates: 0,
 			__v: 0
 		}, function(err, polls) {
 			if (err) {
@@ -330,6 +331,8 @@ app.put('/sessions', function(req, res) {
 		res.send(session);
 	});
 });
+
+// app.put("/ballot")
 
 app.listen(process.env.PORT || 3000, function() {
 	console.log('RePoll listening...');
