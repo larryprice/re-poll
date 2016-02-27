@@ -1,8 +1,9 @@
-var app = require('express')();
-var mongoose = require('mongoose');
-var bodyParser = require('body-parser');
-var bcrypt = require('bcrypt');
-var _ = require('underscore');
+var app = require('express')(),
+	mongoose = require('mongoose'),
+	bodyParser = require('body-parser'),
+	bcrypt = require('bcrypt'),
+  morgan = require('morgan'),
+	_ = require('underscore');
 
 mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost/dev');
 
@@ -48,6 +49,7 @@ db.once('open', function() {
 });
 
 app.use(bodyParser.json());
+app.use(morgan('combined'));
 
 app.get('/', function(req, res) {
 	res.send('Hello, World!');
@@ -480,7 +482,6 @@ app.get("/polls/:id/results", function(request, response) {
 				}
 
 				// do the counts
-				console.log(poll)
 				var candidates = {};
 				poll.candidates.forEach(function(c) {
 					candidates[c.id] = {};
