@@ -6,7 +6,7 @@ var _ = require('underscore');
 
 mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost/dev');
 
-var Session, Poll, Token, Candidate;
+var Session, Poll, Token, Candidate, Ballot;
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
@@ -34,10 +34,17 @@ db.once('open', function() {
 		pollId: String
 	});
 
+  var ballot = mongoose.Schema({
+    tokenId: String,
+    pollId: String,
+    candidates: [candidate]
+  });
+
 	Session = mongoose.model('session', session);
 	Candidate = mongoose.model('candidate', candidate);
 	Poll = mongoose.model('poll', poll);
 	Token = mongoose.model('token', token);
+  Ballot = mongoose.model('ballot', ballot);
 });
 
 app.use(bodyParser.json());
@@ -112,7 +119,6 @@ var withTokenAuth = function(req, res, callback) {
 			});
 			return;
 		}
-		console.log(token)
 		Session.findOne({
 			_id: token.sessionId
 		}, function(e, session) {
@@ -332,7 +338,121 @@ app.put('/sessions', function(req, res) {
 	});
 });
 
-// app.put("/ballot")
+app.put("/ballots", function(request, response) {
+  withTokenAuth(request, response, function(req, res, token) {
+    Poll.findOne({_id: token.pollId}, function(pe, poll) {
+      if (pe) {
+        res.status(500).send({error: pe});
+        return;
+      } else if (!poll) {
+        res.status(400).send({error: "Could not find a poll for the given token"});
+        return;
+      }
+
+      var ballot = new Ballot({tokenId: token.id, pollId: poll.id, candidates: []})
+      ballot.save(function(err) {
+        if (err) {
+          res.status(500).send({error: err});
+          return;
+        }
+        res.send(ballot);
+      });
+    });
+  });
+});
+
+app.post("/ballots/:id", function(request, response) {
+  withTokenAuth(request, response, function(req, res, token) {
+    Ballot.findOne({_id: req.params.id}, function(be, ballot) {
+      if (be) {
+        res.status(500).send({error: be});
+        return;
+      } else if (!ballot) {
+        res.status(400).send({error: "Could not find ballot with ID " + req.params.id});
+        return;
+      }
+
+      // get poll candidates
+      Poll.findOne({_id: ballot.pollId}, function(pe, poll) {
+        if (pe) {
+          res.status(500).send({error: pe});
+          return;
+        } else if (!poll) {
+          res.status(400).send({error: "No such poll " + ballot.pollId});
+          return;
+        }
+
+        if (req.body.candidates) {
+          var validBallot = req.body.candidates.every(function(c) {
+            return poll.candidates.some(function(cc) {
+              return cc.id === c._id;
+            });
+          });
+
+          if (validBallot) {
+            ballot.candidates = req.body.candidates;
+          }
+        }
+
+        ballot.save(function(e) {
+          if (e) {
+            res.status(500).send({error: e});
+            return;
+          }
+          res.send(ballot);
+        });
+      });
+    });
+  });
+});
+
+app.get("/ballots/:id", function(request, response) {
+  withTokenAuth(request, response, function(req, res, token) {
+    Ballot.findOne({_id: req.params.id}, function(be, ballot) {
+      if (be) {
+        res.status(500).send({error: be});
+        return;
+      } else if (!ballot) {
+        res.status(400).send({error: "Could not find ballot with ID " + req.params.id});
+        return;
+      }
+      res.send(ballot);
+    });
+  });
+});
+
+app.get("/polls/:id/results", function(request, response) {
+  withTokenAuth(request, response, function(req, res, token) {
+    Poll.find({_id: req.params.id}, function(e, poll) {
+      if (e) {
+        res.status(500).send({error: e});
+        return;
+      } else if (!poll) {
+        res.status(400).send({error: "Unknown poll with id " + req.params.id});
+        return;
+      }
+      Ballot.find({pollId: poll.id}, function(err, ballots) {
+        if (err) {
+          res.status(500).send({error: err});
+          return;
+        }
+
+        // do the counts
+        var candidates = {};
+        poll.candidates.forEach(function(c) {
+          candidates[c.id] = c;
+          candidates[c.id].count = 0;
+        });
+        ballots.forEach(function(item) {
+          ++candidates[topCandidate.id].count;
+        });
+        res.send(counts.sort(function(lhs, rhs) {
+          return lhs.count > rhs.count;
+        }));
+      });
+    });
+  });
+});
 
 app.listen(process.env.PORT || 3000, function() {
 	console.log('RePoll listening...');
