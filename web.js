@@ -2,7 +2,7 @@ var app = require('express')(),
 	mongoose = require('mongoose'),
 	bodyParser = require('body-parser'),
 	bcrypt = require('bcrypt'),
-  morgan = require('morgan'),
+	morgan = require('morgan'),
 	_ = require('underscore');
 
 mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost/dev');
@@ -481,7 +481,6 @@ app.get("/polls/:id/results", function(request, response) {
 					return;
 				}
 
-				// do the counts
 				var candidates = {};
 				poll.candidates.forEach(function(c) {
 					candidates[c.id] = {};
@@ -489,6 +488,7 @@ app.get("/polls/:id/results", function(request, response) {
 					candidates[c.id].id = c.id;
 					candidates[c.id].count = 0;
 				});
+
 				var results = [];
 				while (true) {
 					ballots.forEach(function(item) {
@@ -501,17 +501,19 @@ app.get("/polls/:id/results", function(request, response) {
 					}).sort(function(lhs, rhs) {
 						return lhs.count > rhs.count;
 					});
-					results.push(result);
-					if (result[result.length - 1].count * 100 / ballots.length > 50) {
+					results.push(JSON.parse(JSON.stringify(result)));
+					if (ballots.length == 2 || result[result.length - 1].count * 100 / ballots.length > 50) {
 						break;
-					} else {
-						var lastPlace = result[0];
-						ballots.forEach(function(ballot) {
-							ballot.candidates.filter(function(c) {
-								return c.id !== lastPlace.id;
-							})
-						});
 					}
+					var lastPlace = result[0];
+					ballots.forEach(function(ballot) {
+						ballot.candidates = ballot.candidates.filter(function(c) {
+							return c.id !== lastPlace.id;
+						})
+					});
+					Object.keys(candidates).forEach(function(key) {
+						candidates[key].count = 0;
+					});
 				}
 				res.send(results);
 			});
