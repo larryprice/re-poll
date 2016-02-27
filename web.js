@@ -4,7 +4,7 @@ var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt');
 var _ = require('underscore');
 
-mongoose.connect('mongodb://localhost/dev');
+mongoose.connect(ENV['MONGOLAB_URI'] || 'mongodb://localhost/dev');
 
 var Session;
 
