@@ -3,6 +3,7 @@ var app = require('express')(),
 	bodyParser = require('body-parser'),
 	bcrypt = require('bcrypt'),
 	morgan = require('morgan'),
+  cors = require('cors'),
 	_ = require('underscore');
 
 mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost/dev');
@@ -48,13 +49,9 @@ db.once('open', function() {
 	Ballot = mongoose.model('ballot', ballot);
 });
 
+app.use(cors());
 app.use(bodyParser.json());
 app.use(morgan('combined'));
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  next();
-});
 
 app.get('/', function(req, res) {
 	res.send('Hello, World!');
