@@ -4,7 +4,7 @@ var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt');
 var _ = require('underscore');
 
-mongoose.connect(ENV['MONGOLAB_URI'] || 'mongodb://localhost/dev');
+mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost/dev');
 
 var Session;
 
@@ -170,6 +170,6 @@ app.put('/sessions', function(req, res) {
   })
 });
 
-app.listen(3000, function() {
+app.listen(process.env.PORT || 3000, function() {
   console.log('Example app listening on port 3000');
 });
