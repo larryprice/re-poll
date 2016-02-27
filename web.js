@@ -34,17 +34,17 @@ db.once('open', function() {
 		pollId: String
 	});
 
-  var ballot = mongoose.Schema({
-    tokenId: String,
-    pollId: String,
-    candidates: [candidate]
-  });
+	var ballot = mongoose.Schema({
+		tokenId: String,
+		pollId: String,
+		candidates: [candidate]
+	});
 
 	Session = mongoose.model('session', session);
 	Candidate = mongoose.model('candidate', candidate);
 	Poll = mongoose.model('poll', poll);
 	Token = mongoose.model('token', token);
-  Ballot = mongoose.model('ballot', ballot);
+	Ballot = mongoose.model('ballot', ballot);
 });
 
 app.use(bodyParser.json());
@@ -277,7 +277,7 @@ app.get('/polls', function(request, result) {
 	withSessionAuth(request, result, function(req, res, session) {
 		Poll.find({}, {
 			passcode: 0,
-      candidates: 0,
+			candidates: 0,
 			__v: 0
 		}, function(err, polls) {
 			if (err) {
@@ -339,119 +339,183 @@ app.put('/sessions', function(req, res) {
 });
 
 app.put("/ballots", function(request, response) {
-  withTokenAuth(request, response, function(req, res, token) {
-    Poll.findOne({_id: token.pollId}, function(pe, poll) {
-      if (pe) {
-        res.status(500).send({error: pe});
-        return;
-      } else if (!poll) {
-        res.status(400).send({error: "Could not find a poll for the given token"});
-        return;
-      }
+	withTokenAuth(request, response, function(req, res, token) {
+		Poll.findOne({
+			_id: token.pollId
+		}, function(pe, poll) {
+			if (pe) {
+				res.status(500).send({
+					error: pe
+				});
+				return;
+			} else if (!poll) {
+				res.status(400).send({
+					error: "Could not find a poll for the given token"
+				});
+				return;
+			}
 
-      var ballot = new Ballot({tokenId: token.id, pollId: poll.id, candidates: []})
-      ballot.save(function(err) {
-        if (err) {
-          res.status(500).send({error: err});
-          return;
-        }
-        res.send(ballot);
-      });
-    });
-  });
+			var ballot = new Ballot({
+				tokenId: token.id,
+				pollId: poll.id,
+				candidates: []
+			})
+			ballot.save(function(err) {
+				if (err) {
+					res.status(500).send({
+						error: err
+					});
+					return;
+				}
+				res.send(ballot);
+			});
+		});
+	});
 });
 
 app.post("/ballots/:id", function(request, response) {
-  withTokenAuth(request, response, function(req, res, token) {
-    Ballot.findOne({_id: req.params.id}, function(be, ballot) {
-      if (be) {
-        res.status(500).send({error: be});
-        return;
-      } else if (!ballot) {
-        res.status(400).send({error: "Could not find ballot with ID " + req.params.id});
-        return;
-      }
+	withTokenAuth(request, response, function(req, res, token) {
+		Ballot.findOne({
+			_id: req.params.id
+		}, function(be, ballot) {
+			if (be) {
+				res.status(500).send({
+					error: be
+				});
+				return;
+			} else if (!ballot) {
+				res.status(400).send({
+					error: "Could not find ballot with ID " + req.params.id
+				});
+				return;
+			}
 
-      // get poll candidates
-      Poll.findOne({_id: ballot.pollId}, function(pe, poll) {
-        if (pe) {
-          res.status(500).send({error: pe});
-          return;
-        } else if (!poll) {
-          res.status(400).send({error: "No such poll " + ballot.pollId});
-          return;
-        }
+			// get poll candidates
+			Poll.findOne({
+				_id: ballot.pollId
+			}, function(pe, poll) {
+				if (pe) {
+					res.status(500).send({
+						error: pe
+					});
+					return;
+				} else if (!poll) {
+					res.status(400).send({
+						error: "No such poll " + ballot.pollId
+					});
+					return;
+				}
 
-        if (req.body.candidates) {
-          var validBallot = req.body.candidates.every(function(c) {
-            return poll.candidates.some(function(cc) {
-              return cc.id === c._id;
-            });
-          });
+				if (req.body.candidates) {
+					var validBallot = req.body.candidates.every(function(c) {
+						return poll.candidates.some(function(cc) {
+							return cc.id === c._id;
+						});
+					});
 
-          if (validBallot) {
-            ballot.candidates = req.body.candidates;
-          }
-        }
+					if (validBallot) {
+						ballot.candidates = req.body.candidates;
+					}
+				}
 
-        ballot.save(function(e) {
-          if (e) {
-            res.status(500).send({error: e});
-            return;
-          }
-          res.send(ballot);
-        });
-      });
-    });
-  });
+				ballot.save(function(e) {
+					if (e) {
+						res.status(500).send({
+							error: e
+						});
+						return;
+					}
+					res.send(ballot);
+				});
+			});
+		});
+	});
 });
 
 app.get("/ballots/:id", function(request, response) {
-  withTokenAuth(request, response, function(req, res, token) {
-    Ballot.findOne({_id: req.params.id}, function(be, ballot) {
-      if (be) {
-        res.status(500).send({error: be});
-        return;
-      } else if (!ballot) {
-        res.status(400).send({error: "Could not find ballot with ID " + req.params.id});
-        return;
-      }
-      res.send(ballot);
-    });
-  });
+	withTokenAuth(request, response, function(req, res, token) {
+		Ballot.findOne({
+			_id: req.params.id
+		}, function(be, ballot) {
+			if (be) {
+				res.status(500).send({
+					error: be
+				});
+				return;
+			} else if (!ballot) {
+				res.status(400).send({
+					error: "Could not find ballot with ID " + req.params.id
+				});
+				return;
+			}
+			res.send(ballot);
+		});
+	});
 });
 
 app.get("/polls/:id/results", function(request, response) {
-  withTokenAuth(request, response, function(req, res, token) {
-    Poll.find({_id: req.params.id}, function(e, poll) {
-      if (e) {
-        res.status(500).send({error: e});
-        return;
-      } else if (!poll) {
-        res.status(400).send({error: "Unknown poll with id " + req.params.id});
-        return;
-      }
-      Ballot.find({pollId: poll.id}, function(err, ballots) {
-        if (err) {
-          res.status(500).send({error: err});
-          return;
-        }
+	withTokenAuth(request, response, function(req, res, token) {
+		Poll.findOne({
+			_id: req.params.id
+		}, function(e, poll) {
+			if (e) {
+				res.status(500).send({
+					error: e
+				});
+				return;
+			} else if (!poll) {
+				res.status(400).send({
+					error: "Unknown poll with id " + req.params.id
+				});
+				return;
+			}
+			Ballot.find({
+				pollId: poll.id
+			}, function(err, ballots) {
+				if (err) {
+					res.status(500).send({
+						error: err
+					});
+					return;
+				}
 
-        // do the counts
-        var candidates = {};
-        poll.candidates.forEach(function(c) {
-          candidates[c.id] = c;
-          candidates[c.id].count = 0;
-        });
-        ballots.forEach(function(item) {
-          ++candidates[topCandidate.id].count;
-        });
-        res.send(counts.sort(function(lhs, rhs) {
-          return lhs.count > rhs.count;
-        }));
-      });
-    });
-  });
+				// do the counts
+				console.log(poll)
+				var candidates = {};
+				poll.candidates.forEach(function(c) {
+					candidates[c.id] = {};
+					candidates[c.id].name = c.name;
+					candidates[c.id].id = c.id;
+					candidates[c.id].count = 0;
+				});
+				var results = [];
+				while (true) {
+					ballots.forEach(function(item) {
+						if (item.candidates) {
+							++candidates[item.candidates[0].id].count;
+						}
+					});
+					var result = Object.keys(candidates).map(function(key) {
+						return candidates[key];
+					}).sort(function(lhs, rhs) {
+						return lhs.count > rhs.count;
+					});
+					results.push(result);
+					if (result[result.length - 1].count * 100 / ballots.length > 50) {
+						break;
+					} else {
+						var lastPlace = result[0];
+						ballots.forEach(function(ballot) {
+							ballot.candidates.filter(function(c) {
+								return c.id !== lastPlace.id;
+							})
+						});
+					}
+				}
+				res.send(results);
+			});
+		});
+	});
 });
 
 app.listen(process.env.PORT || 3000, function() {
