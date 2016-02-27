@@ -30,7 +30,8 @@ db.once('open', function() {
 
 	var token = mongoose.Schema({
 		sessionId: String,
-		expirationDate: Date
+		expirationDate: Date,
+		pollId: String
 	});
 
 	Session = mongoose.model('session', session);
@@ -56,7 +57,7 @@ var parseBasicAuth = function(req) {
 var withSessionAuth = function(req, res, callback) {
 	var creds = parseBasicAuth(req);
 	if (!creds) {
-		res.status(401);
+		res.status(401).send("Requires basic auth");
 		return;
 	}
 	Session.findOne({
@@ -65,6 +66,11 @@ var withSessionAuth = function(req, res, callback) {
 		if (err) {
 			res.status(400).send({
 				error: err
+			});
+			return;
+		} else if (!session) {
+			res.status(400).send({
+				error: "Requires session authentication"
 			});
 			return;
 		}
@@ -83,185 +89,228 @@ var withSessionAuth = function(req, res, callback) {
 	});
 };
 
-// var withTokenAuth = function(req, res, callback) {
-//   if (!req.headers || !req.headers.authorization) {
-// 		return false;
-// 	}
-// 	var creds = req.headers.authorization.replace('Token ', '');
-// 	if (!creds) {
-// 		res.status(401);
-// 		return;
-// 	}
-// 	Token.findOne({
-// 		_id: creds
-// 	}, function(err, token) {
-// 		if (err) {
-// 			res.status(400).send({
-// 				error: err
-// 			});
-// 			return;
-// 		} else if (!token) {
-//       res.status(400).send({error: "No such token"});
-//       return;
-//     }
-//     Session.findOne({_id: token.sessionId}, function(e, session) {
-//       if (e) {
-//   			res.status(400).send({
-//   				error: err
-//   			});
-//   			return;
-//       } else if (!session) {
-//         res.status(400).send({error: "No such token"});
-//         return;
-//       }
-//   		var expires = new Date();
-//   		expires.setDate(expires.getDate() + 30);
-//   		session.expirationDate = expires;
-//   		session.save(function(se) {
-//   			if (se) {
-//   				res.status(400).send({
-//   					error: se
-//   				});
-//   				return;
-//   			}
-//   			callback(req, res, session);
-//   		});
-//     });
-// 	});
-// };
-
-app.put('/polls', function(req, res) {
-	var start = Date.parse(req.body.startDate);
-	var end = Date.parse(req.body.endDate);
-
-	if (isNaN(start) || isNaN(end)) {
-		res.status(400).send({
-			error: "Invalid start or end dates"
-		});
+var withTokenAuth = function(req, res, callback) {
+	if (!req.headers || !req.headers.authorization) {
+		return false;
+	}
+	var creds = req.headers.authorization.replace('Token ', '');
+	if (!creds) {
+		res.status(401);
 		return;
 	}
-	var rawCandidates = JSON.parse(req.body.candidates);
-	if (!req.body.sessionId || !req.body.name || !rawCandidates || !req.body.passcode) {
-		res.status(400).send({
-			error: "Invalid poll object"
-		});
-		return;
-	}
-
-	var candidates = [];
-	for (var i = 0; i < rawCandidates.length; ++i) {
-		var item = rawCandidates[i];
-		if (!item.name) {
+	Token.findOne({
+		_id: creds
+	}, function(err, token) {
+		if (err) {
 			res.status(400).send({
-				error: "Invalid Candidate object: " + item
+				error: err
+			});
+			return;
+		} else if (!token) {
+			res.status(400).send({
+				error: "No such token"
 			});
 			return;
 		}
-		candidates.push(new Candidate({
-			name: item.name
-		}));
-	}
+		console.log(token)
+		Session.findOne({
+			_id: token.sessionId
+		}, function(e, session) {
+			if (e) {
+				res.status(400).send({
+					error: err
+				});
+				return;
+			} else if (!session) {
+				res.status(401).send({
+					error: "Could not find valid session for the given token"
+				});
+				return;
+			}
+			var expires = new Date();
+			expires.setDate(expires.getDate() + 30);
+			session.expirationDate = expires;
+			session.save(function(se) {
+				if (se) {
+					res.status(400).send({
+						error: se
+					});
+					return;
+				}
+				callback(req, res, token);
+			});
+		});
+	});
+};
 
-	bcrypt.hash(req.body.passcode, 10, function(e, hash) {
-		if (e) {
-			res.send(e);
+app.put('/polls', function(request, result) {
+	withSessionAuth(request, result, function(req, res, session) {
+		var start = Date.parse(req.body.startDate);
+		var end = Date.parse(req.body.endDate);
+
+		if (isNaN(start) || isNaN(end)) {
+			res.status(400).send({
+				error: "Invalid start or end dates"
+			});
+			return;
+		}
+		var rawCandidates = undefined;
+		try {
+			rawCandidates = JSON.parse(req.body.candidates);
+		} catch (r) {}
+		if (!req.body.sessionId || !req.body.name || !rawCandidates || !req.body.passcode) {
+			res.status(400).send({
+				error: "Invalid poll object"
+			});
 			return;
 		}
 
-		var poll = new Poll({
-			sessionId: req.body.sessionId,
-			name: req.body.name,
-			startDate: start,
-			endDate: end,
-			candidates: candidates,
-			passcode: hash
+		var candidates = [];
+		for (var i = 0; i < rawCandidates.length; ++i) {
+			var item = rawCandidates[i];
+			if (!item.name) {
+				res.status(400).send({
+					error: "Invalid Candidate object: " + item
+				});
+				return;
+			}
+			candidates.push(new Candidate({
+				name: item.name
+			}));
+		}
+
+		bcrypt.hash(req.body.passcode, 10, function(e, hash) {
+			if (e) {
+				res.send(e);
+				return;
+			}
+
+			var poll = new Poll({
+				sessionId: session.id,
+				name: req.body.name,
+				startDate: start,
+				endDate: end,
+				candidates: candidates,
+				passcode: hash
+			});
+			poll.save(function(err) {
+				if (err) {
+					res.status(500).send({
+						error: err
+					});
+					return;
+				}
+				res.send(_.omit(poll.toObject(), ['passcode', '__v']));
+			});
 		});
-		poll.save(function(err) {
+	});
+});
+
+app.put('/sessions/:id/token', function(req, res) {
+	Session.findOne({
+		_id: req.params.id
+	}, function(se, session) {
+		if (se) {
+			res.status(500).send({
+				error: se
+			});
+			return;
+		} else if (!session) {
+			res.status(400).send({
+				error: "Could not find session with id " + req.params.id
+			});
+			return;
+		}
+
+		var authorization = new Buffer(req.headers.authorization.replace('Basic ', ''), 'base64').toString('utf8');
+		var credentials = authorization.split(':', 2);
+
+		Poll.findOne({
+			_id: credentials[0]
+		}, function(err, poll) {
+			if (err || !poll) {
+				res.status(500).send({
+					error: err
+				});
+				return;
+			}
+			bcrypt.compare(credentials[1], poll.passcode, function(e, r) {
+				if (e) {
+					res.status(500).send({
+						error: e
+					});
+					return;
+				} else if (!r) {
+					res.status(400).send({
+						error: "Invalid passcode"
+					});
+					return;
+				}
+				var expires = new Date();
+				expires.setDate(expires.getDate() + 30);
+				var token = new Token({
+					sessionId: session.id,
+					expirationDate: expires,
+					pollId: poll.id
+				});
+				token.save(function(terr) {
+					if (terr) {
+						res.status(500).send({
+							error: terr
+						});
+						return;
+					}
+					res.send(token);
+				});
+			})
+		});
+	});
+});
+
+app.get('/polls', function(request, result) {
+	withSessionAuth(request, result, function(req, res, session) {
+		Poll.find({}, {
+			passcode: 0,
+			__v: 0
+		}, function(err, polls) {
 			if (err) {
 				res.status(500).send({
 					error: err
 				});
 				return;
 			}
-			res.send(_.omit(poll.toObject(), ['passcode', '__v']));
+			res.send(polls);
 		});
 	});
 });
 
-app.put('/sessions/:id/token', function(req, res) {
-	var authorization = new Buffer(req.headers.authorization.replace('Basic ', ''), 'base64').toString('utf8');
-
-	var credentials = authorization.split(':', 2);
-
-	Poll.findOne({
-		_id: credentials[0]
-	}, function(err, poll) {
-		if (err || !poll) {
-			res.status(500).send({
-				error: err
+app.get('/polls/:id', function(request, response) {
+	withTokenAuth(request, response, function(req, res, token) {
+		if (token.pollId != req.params.id) {
+			res.status(401).send({
+				error: "Token does not match poll ID"
 			});
 			return;
 		}
-		bcrypt.compare(credentials[1], poll.passcode, function(e, r) {
-			if (e) {
+		Poll.findOne({
+			_id: token.pollId,
+		}, {
+			passcode: 0,
+			__v: 0
+		}, function(err, poll) {
+			if (err) {
 				res.status(500).send({
-					error: e
+					error: err
 				});
 				return;
-			} else if (!r) {
+			} else if (!poll) {
 				res.status(400).send({
-					error: "Invalid passcode"
+					error: err
 				});
 				return;
 			}
-			var expires = new Date();
-			expires.setDate(expires.getDate() + 30);
-			var token = new Token({
-				sessionId: req.body.id,
-				expirationDate: expires
-			});
-			token.save(function(terr) {
-				if (terr) {
-					res.status(500).send({
-						error: terr
-					});
-					return;
-				}
-				res.send(token);
-			});
-		})
-	});
-});
-
-app.get('/polls', function(req, res) {
-	Poll.find({}, {
-		passcode: 0,
-		__v: 0
-	}, function(err, polls) {
-		if (err) {
-			res.status(500).send({
-				error: err
-			});
-			return;
-		}
-		res.send(polls);
-	});
-});
-
-app.get('/polls/:id', function(req, res) {
-	Poll.findOne({
-		_id: req.params.id
-	}, {
-		passcode: 0,
-		__v: 0
-	}, function(err, polls) {
-		if (err) {
-			res.status(500).send({
-				error: err
-			});
-			return;
-		}
-		res.send(polls);
+			res.send(poll);
+		});
 	});
 });
 
