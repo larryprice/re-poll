@@ -168,7 +168,7 @@ app.put('/polls', function(request, result) {
 		try {
 			rawCandidates = JSON.parse(req.body.candidates);
 		} catch (r) {}
-		if (!req.body.sessionId || !req.body.name || !rawCandidates || !req.body.passcode) {
+		if (!req.body.name || !rawCandidates || !req.body.passcode) {
 			res.status(400).send({
 				error: "Invalid poll object"
 			});
