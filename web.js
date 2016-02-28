@@ -165,16 +165,16 @@ app.put('/polls', function(request, result) {
 			return;
 		}
 		var rawCandidates = req.body.candidates;
-		if (typeof(rawCandidates) === "string")
-		try {
-			rawCandidates = JSON.parse(req.body.candidates);
-		} catch (r) {}
-		if (!req.body.name || !rawCandidates || !req.body.passcode) {
-			console.log(req.body.name, req.body.candidates, rawCandidates, req.body.passcode);
-			res.status(400).send({
-				error: "Invalid poll object"
-			});
-			return;
+		if (typeof(rawCandidates) === "string") {
+			try {
+				rawCandidates = JSON.parse(req.body.candidates);
+			} catch (r) {}
+			if (!req.body.name || !rawCandidates || !req.body.passcode) {
+				res.status(400).send({
+					error: "Invalid poll object"
+				});
+				return;
+			}
 		}
 
 		var candidates = [];
@@ -230,6 +230,13 @@ app.put('/sessions/:id/token', function(req, res) {
 		} else if (!session) {
 			res.status(400).send({
 				error: "Could not find session with id " + req.params.id
+			});
+			return;
+		}
+
+		if (!req.headers.authorization) {
+			res.status(401).send({
+				error: "Requires basic authorization header"
 			});
 			return;
 		}
