@@ -508,7 +508,7 @@ app.get("/polls/:id/results", function(request, response) {
 				var results = [];
 				while (true) {
 					ballots.forEach(function(item) {
-						if (item.candidates) {
+						if (item.candidates[0]) {
 							++candidates[item.candidates[0].id].count;
 						}
 					});
