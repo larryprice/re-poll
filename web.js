@@ -424,6 +424,8 @@ app.post("/ballots/:id", function(request, response) {
 					return;
 				}
 
+				console.log(req.body.candidates)
+
 				if (req.body.candidates) {
 					var validBallot = req.body.candidates.every(function(c) {
 						return poll.candidates.some(function(cc) {
