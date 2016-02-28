@@ -164,7 +164,8 @@ app.put('/polls', function(request, result) {
 			});
 			return;
 		}
-		var rawCandidates = undefined;
+		var rawCandidates = req.body.candidates;
+		if (typeof(rawCandidates) === "string")
 		try {
 			rawCandidates = JSON.parse(req.body.candidates);
 		} catch (r) {}
