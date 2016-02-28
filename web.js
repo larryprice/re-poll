@@ -193,7 +193,7 @@ app.put('/polls', function(request, result) {
 
 		bcrypt.hash(req.body.passcode, 10, function(e, hash) {
 			if (e) {
-				res.send(e);
+				res.status(500).send({error: e});
 				return;
 			}
 
