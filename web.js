@@ -518,10 +518,13 @@ app.get("/polls/:id/results", function(request, response) {
 						return lhs.count > rhs.count;
 					});
 					results.push(JSON.parse(JSON.stringify(result)));
-					if (ballots.length == 2 || result[result.length - 1].count * 100 / ballots.length > 50) {
+					if (ballots.length <= 2 || result[result.length - 1].count * 100 / ballots.length > 50) {
 						break;
 					}
 					var lastPlace = result[0];
+					ballots = ballots.filter(function(b) {
+						return b.candidates.length > 0;
+					});
 					ballots.forEach(function(ballot) {
 						ballot.candidates = ballot.candidates.filter(function(c) {
 							return c.id !== lastPlace.id;
