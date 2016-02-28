@@ -433,6 +433,9 @@ app.post("/ballots/:id", function(request, response) {
 
 					if (validBallot) {
 						ballot.candidates = req.body.candidates;
+					} else {
+						res.status(400).send("Invalid candidates " + JSON.stringify(req.body.candidates));
+						return;
 					}
 				}
 
