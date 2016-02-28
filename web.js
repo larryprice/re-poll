@@ -14,31 +14,31 @@ var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function() {
 	var session = mongoose.Schema({
-		expirationDate: Date
+		expirationDate: {type: Date, required: true}
 	});
 
 	var candidate = mongoose.Schema({
-		name: String
+		name: {type: String, required: true}
 	});
 
 	var poll = mongoose.Schema({
-		sessionId: String,
-		name: String,
-		startDate: Date,
-		endDate: Date,
+		sessionId: {type: mongoose.Schema.Types.ObjectId, required: true},
+		name: {type: String, unique: true, required: true},
+		startDate: {type: Date, required: true},
+		endDate: {type: Date, required: true},
 		candidates: [candidate],
-		passcode: String
+		passcode: {type: String, required: true}
 	});
 
 	var token = mongoose.Schema({
-		sessionId: String,
-		expirationDate: Date,
-		pollId: String
+		sessionId: {type: String, required: true},
+		expirationDate: {type: Date, required: true},
+		pollId: {type: mongoose.Schema.Types.ObjectId, required: true}
 	});
 
 	var ballot = mongoose.Schema({
-		tokenId: String,
-		pollId: String,
+		tokenId: {type: mongoose.Schema.Types.ObjectId, required: true},
+		pollId: {type: mongoose.Schema.Types.ObjectId, required: true},
 		candidates: [candidate]
 	});
 
@@ -209,7 +209,7 @@ app.put('/polls', function(request, result) {
 			poll.save(function(err) {
 				if (err) {
 					res.status(500).send({
-						error: err
+						error: err.errmsg
 					});
 					return;
 				}
@@ -248,11 +248,15 @@ app.put('/sessions/:id/token', function(req, res) {
 		Poll.findOne({
 			_id: credentials[0]
 		}, function(err, poll) {
-			if (err || !poll) {
+			if (err) {
 				res.status(500).send({
 					error: err
 				});
 				return;
+			} else if (!poll) {
+				res.status(400).send({
+					error: "Could not find poll with id " + credentials[0]
+				});
 			}
 			bcrypt.compare(credentials[1], poll.passcode, function(e, r) {
 				if (e) {
