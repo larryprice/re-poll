@@ -491,7 +491,8 @@ app.get("/polls/:id/results", function(request, response) {
 				return;
 			}
 			Ballot.find({
-				pollId: poll.id
+				pollId: poll.id,
+				candidates: {$exists: true, $ne: []}
 			}, function(err, ballots) {
 				if (err) {
 					res.status(500).send({
