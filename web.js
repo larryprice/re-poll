@@ -500,41 +500,63 @@ app.get("/polls/:id/results", function(request, response) {
 					return;
 				}
 
-				var candidates = {};
-				poll.candidates.forEach(function(c) {
-					candidates[c.id] = {};
-					candidates[c.id].name = c.name;
-					candidates[c.id].id = c.id;
-					candidates[c.id].count = 0;
-				});
-
-				var results = [];
-				while (true) {
-					ballots.forEach(function(item) {
-						if (item.candidates[0]) {
-							++candidates[item.candidates[0].id].count;
-						}
+				var getTally = function(candidates, ballots) {
+					var results = {};
+					candidates.forEach(function(c) {
+						results[c.id] = {};
+						results[c.id].id = c.id;
+						results[c.id].name = c.name;
+						results[c.id].count = 0;
 					});
-					var result = Object.keys(candidates).map(function(key) {
-						return candidates[key];
+
+					ballots.forEach(function(ballot) {
+						var candidate = ballot.candidates[0];
+						if (!candidate) return;
+						++results[candidate.id].count;
+					});
+
+					return Object.keys(results).map(function(key) {
+						return results[key];
 					}).sort(function(lhs, rhs) {
 						return lhs.count > rhs.count;
 					});
+				};
+
+				var getLosers = function(votes) {
+					return votes.filter(function(v) {
+						return v.count === votes[0].count;
+					});
+				}
+
+				var majority = ballots.length / 2, results = [], max = 5;
+				var candidateList = poll.candidates;
+
+				while (ballots.length > 0) {
+					var result = getTally(candidateList, ballots);
 					results.push(JSON.parse(JSON.stringify(result)));
-					if (ballots.length <= 2 || result[result.length - 1].count * 100 / ballots.length > 50) {
+
+					if (result[result.length-1].count > majority) {
 						break;
 					}
-					var lastPlace = result[0];
-					ballots = ballots.filter(function(b) {
-						return b.candidates.length > 0;
-					});
+
+					// remove losers
+					var losers = getLosers(result);
 					ballots.forEach(function(ballot) {
 						ballot.candidates = ballot.candidates.filter(function(c) {
-							return c.id !== lastPlace.id;
-						})
+							return !losers.some(function(l) {
+								return l.id === c.id
+							});
+						});
 					});
-					Object.keys(candidates).forEach(function(key) {
-						candidates[key].count = 0;
+					candidateList = candidateList.filter(function(c) {
+						return !losers.some(function(l) {
+							return l.id === c.id
+						});
+					})
+
+					// remove empty ballots
+					ballots = ballots.filter(function(b) {
+						return b.candidates.length > 0;
 					});
 				}
 				res.send(results);
