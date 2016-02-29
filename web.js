@@ -560,6 +560,7 @@ app.get("/polls/:id/results", function(request, response) {
 						return b.candidates.length > 0;
 					});
 				}
+console.log("hmmmm let's look at the results:", results);
 				res.send(results);
 			});
 		});
