@@ -528,13 +528,13 @@ app.get("/polls/:id/results", function(request, response) {
 					});
 				}
 
-				var majority = ballots.length / 2, results = [], max = 5;
+				var majority = ballots.length / 2, results = [];
 				var candidateList = poll.candidates;
 
 				while (ballots.length > 0) {
 					var result = getTally(candidateList, ballots);
 					results.push(JSON.parse(JSON.stringify(result)));
-
+					console.log(result[result.length-1].count, majority)
 					if (result[result.length-1].count > majority) {
 						break;
 					}
